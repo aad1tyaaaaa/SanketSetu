@@ -1,24 +1,25 @@
 "use client";
 
-import { useMemo } from 'react';
-import { MapContainer, TileLayer, Polygon, CircleMarker, Popup, Marker } from 'react-leaflet';
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Polygon, CircleMarker, Popup } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css'; // We will need to import this globally or here if it works
+import 'leaflet/dist/leaflet.css';
 
 // Fix Leaflet Default Icon issue in Next.js
 const iconUrl = "https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon.png";
 const iconRetinaUrl = "https://unpkg.com/leaflet@1.9.3/dist/images/marker-icon-2x.png";
 const shadowUrl = "https://unpkg.com/leaflet@1.9.3/dist/images/marker-shadow.png";
 
-const customIcon = new L.Icon({
-    iconUrl: iconUrl,
-    iconRetinaUrl: iconRetinaUrl,
-    shadowUrl: shadowUrl,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
+// Only run this on client side
+if (typeof window !== 'undefined') {
+    // @ts-ignore
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+        iconUrl: iconUrl,
+        iconRetinaUrl: iconRetinaUrl,
+        shadowUrl: shadowUrl,
+    });
+}
 
 // Mock Zones (Simple polygons around a central point)
 const CENTRAL_DELHI_COORDS: [number, number] = [28.6139, 77.2090];
@@ -49,10 +50,21 @@ const ZONES = [
 ];
 
 export function LiveMap() {
+    // Ensure we only render on client to avoid hydration mismatches
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    if (!isMounted) {
+        return <div className="h-full w-full bg-slate-950 flex items-center justify-center text-slate-500">Loading Map...</div>;
+    }
 
     return (
         <div className="relative h-full w-full bg-slate-950 overflow-hidden rounded border border-slate-800">
             <MapContainer
+                key="live-map-container" // Stable key
                 center={CENTRAL_DELHI_COORDS}
                 zoom={13}
                 scrollWheelZoom={true}
@@ -64,7 +76,7 @@ export function LiveMap() {
                     url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                 />
 
-                {ZONES.map((zone, idx) => (
+                {ZONES.map((zone) => (
                     <Polygon
                         key={zone.name}
                         positions={zone.positions}
